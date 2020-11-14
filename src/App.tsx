@@ -12,9 +12,12 @@ import "./App.css";
       - AnimationMixer
 */
 
-let scene:any, camera:any, renderer:any;
+let scene:any, camera:any, renderer:any, mixer:any;
+
+let animations:any = {};
 
 const MODEL_TEMP = "./models/Male/SK_MBeachwear.fbx";
+const ANIMATION_TEMP = "./models/Animations/Anim_CheeringIdle.fbx"
 
 function App() {
   const mount = useRef<HTMLDivElement>(null);
@@ -73,9 +76,21 @@ function App() {
   const setupAvatar = () => {
     const loader = new FBXLoader();
     loader.load(MODEL_TEMP, (object) => {
+      console.log("avatar", object);
       object.position.set(0, 0, 0);
       object.scale.set(0.1, 0.1, 0.1);
+
+      // Mixer
+      const animsKeys = Object.keys(animations);
+      if (animsKeys.length) {
+        mixer = new THREE.AnimationMixer(object);
+        const action = mixer.clipAction(animations[animsKeys[0]]); // or 1?
+        action.play();
+      }
+
       scene.add(object);
+
+      // Debug animation
       const animate = function () {
         requestAnimationFrame( animate );
         object.rotation.x += 0.01;
@@ -83,6 +98,17 @@ function App() {
         renderer.render( scene, camera );
       };
       animate();
+    });
+  }
+
+  const setupAnimation = () => {
+    const loader = new FBXLoader();
+    loader.load(ANIMATION_TEMP, (object) => {
+      console.log("animation", object);
+      //@ts-ignore
+      animations = { ...animations, [`anim-${object.id}`]: object.animations[0] };
+      // const action = mixer.clipAction(object.animations[0]);
+      // action.play();
     });
   }
 
@@ -94,6 +120,7 @@ function App() {
     setupScene();
     setupBox();
     setupAvatar();
+    setupAnimation();
 
     window.addEventListener("resize", onWindowResize, false);
     
