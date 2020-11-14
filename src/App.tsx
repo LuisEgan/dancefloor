@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from "react";
 import * as THREE from "three"
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader"
 
 import "./App.css";
 
@@ -13,14 +14,12 @@ import "./App.css";
 
 let scene:any, camera:any, renderer:any;
 
+const MODEL_TEMP = "https://ragnarokblobstorage.blob.core.windows.net/finland-blob/SambaDancing.fbx";
+
 function App() {
   const mount = useRef<HTMLDivElement>(null);
 
-  /**
-   * Effects
-   */
-
-  useEffect(() => {
+  const setupScene = () => {
     const width = mount?.current?.offsetWidth || 1;
     const height = mount?.current?.offsetHeight || 1;
 
@@ -29,7 +28,7 @@ function App() {
   
     // Camera
     camera = new THREE.PerspectiveCamera(45, width / height);
-    camera.position.set(0, 0, 0);
+    camera.position.set(0, 0, 100);
     // camera.rotateX(100);
 
     // Renderer
@@ -54,12 +53,13 @@ function App() {
     dirLight.shadow.camera.right = 1200;
     scene.add(dirLight);
 
+  }
+
+  const setupBox = () => {
     const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-    const material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     const cube = new THREE.Mesh( geometry, material );
     scene.add(cube);
-    
-    camera.position.z = 5;
     
     const animate = function () {
       requestAnimationFrame( animate );
@@ -68,9 +68,35 @@ function App() {
       renderer.render( scene, camera );
     };
     animate();
+  }
+
+  const setupAvatar = () => {
+    const loader = new FBXLoader();
+    loader.load(MODEL_TEMP, (object) => {
+      object.position.set(0, 0, 0);
+      object.scale.set(0.1, 0.1, 0.1);
+      scene.add(object);
+      const animate = function () {
+        requestAnimationFrame( animate );
+        object.rotation.x += 0.01;
+        object.rotation.y += 0.01;
+        renderer.render( scene, camera );
+      };
+      animate();
+    });
+  }
+
+  /**
+   * Effects
+   */
+
+  useEffect(() => {
+    setupScene();
+    // setupBox();
+    setupAvatar();
 
     window.addEventListener("resize", onWindowResize, false);
-
+    
     // Destroy
     let currentMount = mount?.current;
     return () => {
