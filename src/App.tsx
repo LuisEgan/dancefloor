@@ -14,7 +14,7 @@ import "./App.css";
 
 let scene:any, camera:any, renderer:any;
 
-const MODEL_TEMP = "https://ragnarokblobstorage.blob.core.windows.net/finland-blob/SambaDancing.fbx";
+const MODEL_TEMP = "./models/Male/SK_MBeachwear.fbx";
 
 function App() {
   const mount = useRef<HTMLDivElement>(null);
