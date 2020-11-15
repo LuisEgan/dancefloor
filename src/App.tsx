@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { AnimationMixer, Object3D } from "three";
+import { Object3D } from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 
 import "./App.css";
@@ -9,37 +9,34 @@ import "./App.css";
   TODO:
     - FBX caching
     - Better animations with fade in and out?
+    - Animaatioiden ja modelien viat tietoon
 */
 
-let scene: any, camera: any, renderer: any, mixer: any;
+let scene: any, camera: any, renderer: any;
 
 let frameId: number;
 
-let animations: any = {};
-
 const clock = new THREE.Clock();
-
-interface IMixers {
-  [mixer: string]: AnimationMixer;
-}
-
-let mixers: IMixers = {};
 
 const AVATARS_DATA = [
   {
-    base: "./models/Female/SK_FDress01.FBX",
+    base: "./models/Female/SK_FDress01.fbx",
     head: "./models/Female/SK_FHead.fbx",
     hair: "./models/Female/SK_FHair03.fbx",
   },
   {
-    base: "./models/Female/SK_FDress01.FBX",
+    base: "./models/Female/SK_FHoodie.fbx",
     head: "./models/Female/SK_FHead.fbx",
-    hair: "./models/Female/SK_FHair03.fbx",
+    hair: "./models/Female/SK_FHair01.fbx",
+  },
+  {
+    base: "./models/Male/SK_MBeachwear.fbx",
+    head: "./models/Male/SK_MHead.fbx",
+    hair: "./models/Male/SK_MHair06.fbx",
+    beard: "./models/Male/SK_MBeard02.fbx",
   },
 ];
 
-const MODEL_TEMP = "./models/Male/SK_MBeachwear.fbx";
-const ANIMATION_TEMP = "./models/Animations/Anim_CheeringIdle.fbx";
 const ANIMATION_IDLE = "./models/Animations/Anim_BasicIdle.fbx";
 
 const ANIMATIONS = {
@@ -50,7 +47,6 @@ const ANIMATIONS = {
   dance4: "./models/Animations/Anim_Dance04.fbx",
   dance5: "./models/Animations/Anim_Dance05.fbx",
   previewPose: "./models/Animations/Anim_PreviewPose.fbx",
-  basicIdle: "./models/Animations/Anim_BasicIdle.fbx",
   cheeringIdle: "./models/Animations/Anim_CheeringIdle.fbx",
   clapping: "./models/Animations/Anim_Clapping.fbx",
 };
@@ -110,6 +106,12 @@ const buildAvatar = async (avatar: any) => {
     new THREE.AnimationMixer(head),
     new THREE.AnimationMixer(hair),
   ];
+
+  if (avatar.beard) {
+    const beard: any = await loadFBX(avatar.beard);
+    object.add(beard);
+    mixers.push(new THREE.AnimationMixer(beard));
+  }
 
   let idleActions: any = [];
   mixers.forEach((mixer) => {
@@ -195,33 +197,23 @@ function App() {
   const setupAvatars = async () => {
     for (let i = 0; i < AVATARS_DATA.length; i++) {
       let avatar = await buildAvatar(AVATARS_DATA[i]);
-      avatar.object.position.set(i * 100, 0, 0);
+      avatar.object.position.set(i * 100, -100, 0);
       scene.add(avatar.object);
       avatars.push(avatar);
     }
   };
 
+  let isAnimationRunning = false;
   const runAnimation = async (fp: any) => {
+    if (isAnimationRunning) return;
+    isAnimationRunning = true;
+
     const animation: any = await loadFBX(fp);
     avatars[0].idle.stop();
     const onFinished = () => {
       avatars[0].idle.start();
       avatars[0].mixers[0].removeEventListener(onFinished);
-    };
-    avatars[0].mixers[0].addEventListener("finished", onFinished);
-    for (let i = 0; i < avatars[0].mixers.length; i++) {
-      const action = avatars[0].mixers[i].clipAction(animation.animations[0]);
-      action.setLoop(THREE.LoopRepeat, 1);
-      action.play();
-    }
-  };
-
-  const cheer = async () => {
-    const animation: any = await loadFBX(ANIMATION_TEMP);
-    avatars[0].idle.stop();
-    const onFinished = () => {
-      avatars[0].idle.start();
-      avatars[0].mixers[0].removeEventListener(onFinished);
+      isAnimationRunning = false;
     };
     avatars[0].mixers[0].addEventListener("finished", onFinished);
     for (let i = 0; i < avatars[0].mixers.length; i++) {
