@@ -6,11 +6,9 @@ import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 import "./App.css";
 
 /*
-  - Interaction API
-  - FBXLoader
-  - Scene
-    - Avatar
-      - AnimationMixer
+  TODO:
+    - FBX caching
+    - Better animations with fade in and out?
 */
 
 let scene: any, camera: any, renderer: any, mixer: any;
