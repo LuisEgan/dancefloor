@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { AnimationMixer, Object3D } from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
@@ -27,11 +27,103 @@ interface IMixers {
 
 let mixers: IMixers = {};
 
+const AVATARS_DATA = [
+  {
+    base: "./models/Female/SK_FDress01.FBX",
+    head: "./models/Female/SK_FHead.fbx",
+    hair: "./models/Female/SK_FHair03.fbx",
+  },
+  {
+    base: "./models/Female/SK_FDress01.FBX",
+    head: "./models/Female/SK_FHead.fbx",
+    hair: "./models/Female/SK_FHair03.fbx",
+  },
+];
+
 const MODEL_TEMP = "./models/Male/SK_MBeachwear.fbx";
 const ANIMATION_TEMP = "./models/Animations/Anim_CheeringIdle.fbx";
+const ANIMATION_IDLE = "./models/Animations/Anim_BasicIdle.fbx";
+
+const loadFBX = (fp: string) => {
+  return new Promise((resolve, reject) => {
+    const loader = new FBXLoader();
+
+    const onLoad = (object: Object3D) => {
+      // const animsKeys = Object.keys(animations);
+      // console.log("animsKeys: ", animsKeys);
+      // console.log("animations: ", animations);
+      // if (animsKeys.length) {
+      //   mixer = new THREE.AnimationMixer(object);
+      //   const action = mixer.clipAction(animations[animsKeys[0]]); // or 1?
+      //   action.play();
+      // }
+      object.traverse(function (child: Object3D) {
+        if (child instanceof THREE.Mesh) {
+          child.material.shininess = 0;
+        }
+      });
+      resolve(object);
+    };
+
+    const onLoading = (xhr: any) => {
+      console.log(
+        "loading: ",
+        `${((xhr.loaded / xhr.total) * 100).toFixed(2)}%`
+      );
+    };
+
+    const onLoaderError = (error: any) => {
+      console.log("onLoaderError", error);
+      return reject(error);
+    };
+
+    loader.load(fp, onLoad, onLoading, onLoaderError);
+  });
+};
+
+const buildAvatar = async (avatar: any) => {
+  console.log("buildAvatar", avatar);
+
+  const object: any = await loadFBX(avatar.base);
+  const head: any = await loadFBX(avatar.head);
+  const hair: any = await loadFBX(avatar.hair);
+  const idleAnimation: any = await loadFBX(ANIMATION_IDLE);
+
+  object.add(head);
+  object.add(hair);
+
+  console.log(object);
+
+  const mixers = [
+    new THREE.AnimationMixer(object),
+    new THREE.AnimationMixer(head),
+    new THREE.AnimationMixer(hair),
+  ];
+
+  let idleActions: any = [];
+  mixers.forEach((mixer) => {
+    mixer.addEventListener("finished", function (e) {
+      console.log("finished", e);
+    });
+    const action = mixer.clipAction(idleAnimation.animations[0]);
+    action.play();
+    idleActions.push(action);
+  });
+
+  return {
+    object,
+    mixers,
+    idle: {
+      start: () => idleActions.forEach((a: any) => a.play()),
+      stop: () => idleActions.forEach((a: any) => a.stop()),
+    },
+  };
+};
 
 function App() {
   const mount = useRef<HTMLDivElement>(null);
+
+  let avatars: any = [];
 
   const setupScene = () => {
     const width = mount?.current?.offsetWidth || 1;
@@ -42,7 +134,7 @@ function App() {
 
     // Camera
     camera = new THREE.PerspectiveCamera(45, width / height);
-    camera.position.set(0, 0, 100);
+    camera.position.set(0, 0, 500);
     // camera.rotateX(100);
 
     // Renderer
@@ -73,15 +165,13 @@ function App() {
     frameId = window.requestAnimationFrame(animate);
 
     if (clock) {
-      Object.keys(mixers).forEach((mixer) => {
-        const delta = clock.getDelta();
-        mixers[mixer].update(delta);
-      });
-    }
-
-    if (mixer && clock) {
       const delta = clock.getDelta();
-      mixer.update(delta);
+      for (let i = 0; i < avatars.length; i++) {
+        if (!avatars[i].mixers) continue;
+        for (let ii = 0; ii < avatars[i].mixers.length; ii++) {
+          avatars[i].mixers[ii].update(delta);
+        }
+      }
     }
   };
 
@@ -91,91 +181,28 @@ function App() {
     }
   };
 
-  const setupBox = () => {
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+  const setupAvatars = async () => {
+    for (let i = 0; i < AVATARS_DATA.length; i++) {
+      let avatar = await buildAvatar(AVATARS_DATA[i]);
+      avatar.object.position.set(i * 100, 0, 0);
+      scene.add(avatar.object);
+      avatars.push(avatar);
+    }
+  };
 
-    const animate = function () {
-      requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
-      // renderer.render( scene, camera );
+  const cheer = async () => {
+    const animation: any = await loadFBX(ANIMATION_TEMP);
+    avatars[0].idle.stop();
+    const onFinished = () => {
+      avatars[0].idle.start();
+      avatars[0].mixers[0].removeEventListener(onFinished);
     };
-    animate();
-  };
-
-  const setupAvatar = () => {
-    return new Promise((resolve, reject) => {
-      const loader = new FBXLoader();
-
-      const onLoad = (object: Object3D) => {
-        console.log("avatar", object);
-        object.position.set(0, 0, 0);
-        object.scale.set(0.1, 0.1, 0.1);
-
-        // Mixer
-        const animsKeys = Object.keys(animations);
-        console.log("animsKeys: ", animsKeys);
-        console.log("animations: ", animations);
-        if (animsKeys.length) {
-          mixer = new THREE.AnimationMixer(object);
-          const action = mixer.clipAction(animations[animsKeys[0]]); // or 1?
-          action.play();
-        }
-
-        // * Tweak lighting on materials
-        object.traverse(function (child: Object3D) {
-          if (child instanceof THREE.Mesh) {
-            child.material.shininess = 0;
-          }
-        });
-
-        scene.add(object);
-
-        // Debug animation
-        const animate = function () {
-          requestAnimationFrame(animate);
-          object.rotation.x += 0.01;
-          object.rotation.y += 0.01;
-          renderer.render(scene, camera);
-        };
-        animate();
-
-        resolve();
-      };
-
-      const onLoading = (xhr: any) => {
-        console.log(
-          "loading: ",
-          `${((xhr.loaded / xhr.total) * 100).toFixed(2)}%`
-        );
-      };
-
-      const onLoaderError = function (error: ErrorEvent) {
-        console.error(error);
-        reject();
-      };
-
-      loader.load(MODEL_TEMP, onLoad, onLoading, onLoaderError);
-    });
-  };
-
-  const setupAnimation = () => {
-    const loader = new FBXLoader();
-    loader.load(ANIMATION_TEMP, (object) => {
-      console.log("animation", object);
-
-      animations = {
-        ...animations,
-        //@ts-ignore
-        [`anim-${object.id}`]: object.animations[0],
-      };
-
-      // const action = mixer.clipAction(object.animations[0]);
-      // action.play();
-    });
+    avatars[0].mixers[0].addEventListener("finished", onFinished);
+    for (let i = 0; i < avatars[0].mixers.length; i++) {
+      const action = avatars[0].mixers[i].clipAction(animation.animations[0]);
+      action.setLoop(THREE.LoopRepeat, 1);
+      action.play();
+    }
   };
 
   /**
@@ -185,9 +212,7 @@ function App() {
   useEffect(() => {
     setupScene();
     start();
-    setupBox();
-    setupAvatar();
-    setupAnimation();
+    setupAvatars();
 
     window.addEventListener("resize", onWindowResize, false);
 
@@ -215,6 +240,9 @@ function App() {
 
   return (
     <div className="App">
+      <button onClick={() => cheer()}>cheer</button>
+      <button onClick={() => avatars[0].idle.stop()}>stop idle</button>
+      <button onClick={() => avatars[0].idle.start()}>start idle</button>
       <div id="scene" ref={mount} />
     </div>
   );
