@@ -42,6 +42,19 @@ const MODEL_TEMP = "./models/Male/SK_MBeachwear.fbx";
 const ANIMATION_TEMP = "./models/Animations/Anim_CheeringIdle.fbx";
 const ANIMATION_IDLE = "./models/Animations/Anim_BasicIdle.fbx";
 
+const ANIMATIONS = {
+  yelling: "./models/Animations/Anim_Yelling.fbx",
+  dance1: "./models/Animations/Anim_Dance01.fbx",
+  dance2: "./models/Animations/Anim_Dance02.fbx",
+  dance3: "./models/Animations/Anim_Dance03.fbx",
+  dance4: "./models/Animations/Anim_Dance04.fbx",
+  dance5: "./models/Animations/Anim_Dance05.fbx",
+  previewPose: "./models/Animations/Anim_PreviewPose.fbx",
+  basicIdle: "./models/Animations/Anim_BasicIdle.fbx",
+  cheeringIdle: "./models/Animations/Anim_CheeringIdle.fbx",
+  clapping: "./models/Animations/Anim_Clapping.fbx",
+};
+
 const loadFBX = (fp: string) => {
   return new Promise((resolve, reject) => {
     const loader = new FBXLoader();
@@ -188,6 +201,21 @@ function App() {
     }
   };
 
+  const runAnimation = async (fp: any) => {
+    const animation: any = await loadFBX(fp);
+    avatars[0].idle.stop();
+    const onFinished = () => {
+      avatars[0].idle.start();
+      avatars[0].mixers[0].removeEventListener(onFinished);
+    };
+    avatars[0].mixers[0].addEventListener("finished", onFinished);
+    for (let i = 0; i < avatars[0].mixers.length; i++) {
+      const action = avatars[0].mixers[i].clipAction(animation.animations[0]);
+      action.setLoop(THREE.LoopRepeat, 1);
+      action.play();
+    }
+  };
+
   const cheer = async () => {
     const animation: any = await loadFBX(ANIMATION_TEMP);
     avatars[0].idle.stop();
@@ -236,11 +264,16 @@ function App() {
     renderer && renderer.setSize(width, height);
   };
 
+  console.log(Object.keys(ANIMATIONS));
+
   return (
     <div className="App">
-      <button onClick={() => cheer()}>cheer</button>
       <button onClick={() => avatars[0].idle.stop()}>stop idle</button>
       <button onClick={() => avatars[0].idle.start()}>start idle</button>
+      {Object.keys(ANIMATIONS).map((k: any) => {
+        //@ts-ignore
+        return <button onClick={() => runAnimation(ANIMATIONS[k])}>{k}</button>;
+      })}
       <div id="scene" ref={mount} />
     </div>
   );
